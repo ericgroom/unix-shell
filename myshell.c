@@ -22,9 +22,26 @@
 #define ARGVMAX 64
 #define PIPECNTMAX 10
 
+void print_prompt() {
+    printf("%s", PROMPT);
+}
+
+void start_loop() {
+    char buf[BUFFERSIZE];
+    print_prompt();
+    while(fgets(buf, BUFFERSIZE, stdin)) {
+        printf("contents: %s", buf);
+        print_prompt();
+    }
+    printf("\n");
+}
+
 int main(int* argc, char** argv)
 {
-
+    start_loop();
+    
+    
+    
     
 return 0;
 }
