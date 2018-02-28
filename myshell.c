@@ -1,7 +1,7 @@
 /****************************************************************
- * Name        :                                                *
+ * Name        : Eric Groom                                     *
  * Class       : CSC 415                                        *
- * Date  	   :                                                *
+ * Date  	   : TODO                                           *
  * Description :  Writting a simple bash shell program          *
  * 	        	  that will execute simple commands. The main   *
  *                goal of the assignment is working with        *
@@ -21,6 +21,7 @@
 #define PROMPTSIZE sizeof(PROMPT)
 #define ARGVMAX 64
 #define PIPECNTMAX 10
+#define MAX_ARGV_PER_COMMAND 4
 
 void print_prompt() {
     printf("%s", PROMPT);
@@ -35,7 +36,7 @@ int strip(char *str, int size) {
     }
 }
 
-void parse(char *raw, int len, int *argc, char **argv) {
+void parse(char *raw, int *argc, char **argv) {
     int i = 0;
     for(char *token = strtok(raw, " "); token != NULL; token = strtok(NULL, " ")) {
         argv[i] = token;
@@ -46,12 +47,23 @@ void parse(char *raw, int len, int *argc, char **argv) {
 
 void start_loop() {
     char buf[BUFFERSIZE];
-    int* myargc = malloc(4);
-    char** myargv = calloc(PIPECNTMAX*4, ARGVMAX);
+    int status;
+    int* myargc = malloc(sizeof(int));
+    char** myargv = calloc(PIPECNTMAX*MAX_ARGV_PER_COMMAND, ARGVMAX);
+    char** callingargv = calloc(MAX_ARGV_PER_COMMAND+1, ARGVMAX);
     print_prompt();
     while(fgets(buf, BUFFERSIZE, stdin)) {
         int len = strip(buf, BUFFERSIZE);
-        parse(buf, len, myargc, myargv);
+        parse(buf, myargc, myargv);
+        callingargv = myargv;
+        callingargv[4] = NULL;
+        pid_t child_pid = -1;
+        child_pid = fork();
+        if (child_pid == -1) perror("forking error");
+        int exec_return = -1;
+        execvp(callingargv[0], callingargv);
+        if (exec_return < 0) perror("error executing");
+        //int pid = wait(&status);
         printf("myargc: %d\n", *myargc);
         for(int i = 0; i < *myargc; i++) {
             printf("contents[%d]: %s\n", i, myargv[i]);
