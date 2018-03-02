@@ -55,15 +55,24 @@ void start_loop() {
     while(fgets(buf, BUFFERSIZE, stdin)) {
         int len = strip(buf, BUFFERSIZE);
         parse(buf, myargc, myargv);
+        printf("myargc: %d\n", *myargc);
+        for(int i = 0; i < *myargc; i++) {
+            printf("contents[%d]: %s\n", i, myargv[i]);
+        }
         callingargv = myargv;
         callingargv[4] = NULL;
+
         pid_t child_pid = -1;
         child_pid = fork();
-        if (child_pid == -1) perror("forking error");
+        if (child_pid < 0) {
+            perror("forking error");
+        } else if (child_pid == 0) {
         int exec_return = -1;
-        execvp(callingargv[0], callingargv);
+            exec_return = execvp(callingargv[0], callingargv);
         if (exec_return < 0) perror("error executing");
-        //int pid = wait(&status);
+        } else {
+            wait(NULL); // wait for child
+        }
         printf("myargc: %d\n", *myargc);
         for(int i = 0; i < *myargc; i++) {
             printf("contents[%d]: %s\n", i, myargv[i]);
