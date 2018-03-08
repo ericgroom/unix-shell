@@ -53,40 +53,33 @@ void parse(char *raw, int *argc, char **argv) {
 
 void exec_child(char** argv, int argc) {
     pid_t child_pid = -1;
-        child_pid = fork();
-        if (child_pid < 0) {
-            perror("forking error");
-        } else if (child_pid == 0) {
-        int exec_return = -1;
-            exec_return = execvp(argv[0], argv);
-        if (exec_return < 0) perror("error executing");
-        } else {
-            wait(NULL); // wait for child
-        }
+    child_pid = fork();
+    if (child_pid < 0) {
+        perror("forking error");
+    } else if (child_pid == 0) {
+    int exec_return = -1;
+    exec_return = execvp(argv[0], argv);
+    if (exec_return < 0) perror("error executing");
+    } else {
+        wait(NULL); // wait for child
+    }
 }
 
 void start_loop() {
     char buf[BUFFERSIZE];
-    int status;
     int* myargc = calloc(PIPECNTMAX, sizeof(int));
-    char** myargv = calloc(PIPECNTMAX*MAX_ARGV_PER_COMMAND, ARGVMAX);
-    char** callingargv = calloc(MAX_ARGV_PER_COMMAND+1, ARGVMAX);
+    char** myargv = calloc(PIPECNTMAX*MAX_ARGV_PER_COMMAND, sizeof(char*));
+    char** callingargv = calloc(5, sizeof(char *));
     print_prompt();
     while(fgets(buf, BUFFERSIZE, stdin)) {
         int len = strip(buf, BUFFERSIZE);
         parse(buf, myargc, myargv);
-        printf("myargc: %d\n", *myargc);
-        for(int i = 0; i < 16; i++) {
-            printf("contents[%d]: %s\n", i, myargv[i]);
+        for(int i = 0; myargv[i] != NULL; i++) {
+            callingargv[i] = malloc(strlen(myargv[i]) + 1);
+            strcpy(callingargv[i], myargv[i]);
         }
-        memcpy(callingargv, myargv, myargc[0]);
         callingargv[4] = NULL;
         exec_child(callingargv, myargc[0]);
-        
-        printf("myargc: %d\n", *myargc);
-        for(int i = 0; i < 16; i++) {
-            printf("contents[%d]: %s\n", i, myargv[i]);
-        }
         memset(myargv, 0, ARGVMAX);
         memset(myargc, 0, ARGVMAX);
         print_prompt();
