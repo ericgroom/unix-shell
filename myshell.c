@@ -1,13 +1,13 @@
 /****************************************************************
  * Name        : Eric Groom                                     *
  * Class       : CSC 415                                        *
- * Date  	   : TODO                                           *
+ * Date        : 3/12/2018                                      *
  * Description :  Writting a simple bash shell program          *
- * 	        	  that will execute simple commands. The main   *
+ *                that will execute simple commands. The main   *
  *                goal of the assignment is working with        *
  *                fork, pipes and exec system calls.            *
  ****************************************************************/
-// TODO fix tabs in header
+
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -79,7 +79,7 @@ void exec_children(char **argv, int *argc)
     command1_argv[4] = NULL;
     command2_argv[4] = NULL;
 
-    char hasPipe = command2_argv[0];
+    char *hasPipe = command2_argv[0];
 
     pid_t child_pid = -1;
     if (strncmp(command1_argv[0], "exit", 4) == 0)
