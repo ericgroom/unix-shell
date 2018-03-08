@@ -64,23 +64,26 @@ void exec_children(char **argv, int *argc)
     int pd[2];
     pipe(pd);
     // while(argc[no_commands] != NULL) no_commands++;
-    char** command1_argv = calloc(5, sizeof(char *));
-    char** command2_argv = calloc(5, sizeof(char *));
+    char **command1_argv = calloc(5, sizeof(char *));
+    char **command2_argv = calloc(5, sizeof(char *));
     for (int i = 0; argv[i] != NULL; i++)
     {
         command1_argv[i] = malloc(strlen(argv[i]) + 1);
         strcpy(command1_argv[i], argv[i]);
     }
-    for (int i = 0; argv[i+4] != NULL; i++)
+    for (int i = 0; argv[i + 4] != NULL; i++)
     {
-        command2_argv[i] = malloc(strlen(argv[i+4]) + 1);
-        strcpy(command2_argv[i], argv[i+4]);
+        command2_argv[i] = malloc(strlen(argv[i + 4]) + 1);
+        strcpy(command2_argv[i], argv[i + 4]);
     }
     command1_argv[4] = NULL;
     command2_argv[4] = NULL;
 
+    char hasPipe = command2_argv[0];
+
     pid_t child_pid = -1;
-    if (strncmp(command1_argv[0], "exit", 4) == 0) {
+    if (strncmp(command1_argv[0], "exit", 4) == 0)
+    {
         exit(0);
     }
     child_pid = fork();
@@ -90,31 +93,40 @@ void exec_children(char **argv, int *argc)
     }
     else if (child_pid == 0) // child one
     {
+        if (hasPipe) {
         dup2(pd[1], STDOUT_FILENO);
+        }
 
         close(pd[0]);
         close(pd[1]);
-        int exec_return = -1;
-        exec_return = execvp(command1_argv[0], command1_argv);
-        if (exec_return < 0)
-            perror("error executing");
+
+        execvp(command1_argv[0], command1_argv);
+        perror("error executing");
     }
     else
     {
-        if (fork() == 0) {
+        if (hasPipe && fork() == 0)
+        { // child 2
             dup2(pd[0], STDIN_FILENO);
             close(pd[0]);
             close(pd[1]);
-            int exec_return = -1;
-            exec_return = execvp(command2_argv[0], command2_argv);
-            if (exec_return < 0)
-                perror("error executing");
-        } else {
+
+            execvp(command2_argv[0], command2_argv);
+            perror("error executing");
+        }
+        else
+        { // parent
             close(pd[0]);
             close(pd[1]);
             wait(NULL); // wait for child
         }
     }
+    for (int i = 0; i < 5; i++) {
+        free(command1_argv[i]);
+        free(command2_argv[i]);
+    }
+    free(command1_argv);
+    free(command2_argv);
 }
 
 void start_loop()
@@ -133,6 +145,11 @@ void start_loop()
         print_prompt();
     }
     printf("\n");
+    free(myargc);
+    for(int i = 0; i < ARGVMAX; i++) {
+        free(myargv[i]);
+    }
+    free(myargv);
 }
 
 int main(int argc, char **argv)
