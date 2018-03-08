@@ -29,7 +29,7 @@ void print_prompt()
     printf("%s", PROMPT);
 }
 
-int strip(char *str, int size)
+int strip_nl(char *str, int size)
 {
     for (int i = 0; i < size; i++)
     {
@@ -44,45 +44,29 @@ int strip(char *str, int size)
 
 void parse(char *raw, int *argc, char **argv)
 {
+    int index = 0;
     int command = 0;
     char *saveptr1, *saveptr2;
     for (char *token = strtok_r(raw, "|", &saveptr1); token != NULL; token = strtok_r(NULL, "|", &saveptr1))
     {
         for (char *subtoken = strtok_r(token, " ", &saveptr2); subtoken != NULL; subtoken = strtok_r(NULL, " ", &saveptr2))
         {
-            int index = argc[command] + command * MAX_ARGV_PER_COMMAND;
             argv[index] = subtoken;
             argc[command]++;
+            index++;
         }
         command++;
+        argv[++index] = NULL;
     }
 }
 
 void exec_children(char **argv, int *argc)
 {
-    // int no_commands = 0;
     int pd[2];
     pipe(pd);
-    // while(argc[no_commands] != NULL) no_commands++;
-    char **command1_argv = calloc(5, sizeof(char *));
-    char **command2_argv = calloc(5, sizeof(char *));
-    for (int i = 0; argv[i] != NULL; i++)
-    {
-        command1_argv[i] = malloc(strlen(argv[i]) + 1);
-        strcpy(command1_argv[i], argv[i]);
-    }
-    for (int i = 0; argv[i + 4] != NULL; i++)
-    {
-        command2_argv[i] = malloc(strlen(argv[i + 4]) + 1);
-        strcpy(command2_argv[i], argv[i + 4]);
-    }
-    command1_argv[4] = NULL;
-    command2_argv[4] = NULL;
-
-    char *hasPipe = command2_argv[0];
-
+    int *hasPipe = argc[1] > 0;
     pid_t child_pid = -1;
-    if (strncmp(command1_argv[0], "exit", 4) == 0)
+    if (strncmp(argv[0], "exit", 4) == 0)
     {
         exit(0);
     }
@@ -100,7 +84,7 @@ void exec_children(char **argv, int *argc)
         close(pd[0]);
         close(pd[1]);
 
-        execvp(command1_argv[0], command1_argv);
+        execvp(*argv, argv);
         perror("error executing");
     }
     else
@@ -110,8 +94,9 @@ void exec_children(char **argv, int *argc)
             dup2(pd[0], STDIN_FILENO);
             close(pd[0]);
             close(pd[1]);
-
-            execvp(command2_argv[0], command2_argv);
+            
+            int index = argc[0]+1;
+            execvp(argv[index], &argv[index]);
             perror("error executing");
         }
         else
@@ -121,35 +106,41 @@ void exec_children(char **argv, int *argc)
             wait(NULL); // wait for child
         }
     }
-    for (int i = 0; i < 5; i++) {
-        free(command1_argv[i]);
-        free(command2_argv[i]);
+}
+
+int first_ws(char *str) {
+    int len = strlen(str);
+    for(int i = 0; i < len; i++) {
+        if (str[i] == '\n' || str[i] == '\t' || str[i] == ' ' ) {
+            return i;
+        }
     }
-    free(command1_argv);
-    free(command2_argv);
+    return len;
 }
 
 void start_loop()
 {
     char buf[BUFFERSIZE];
     int *myargc = calloc(PIPECNTMAX, sizeof(int));
-    char **myargv = calloc(PIPECNTMAX * MAX_ARGV_PER_COMMAND, sizeof(char *));
+    char **myargv = calloc(ARGVMAX, sizeof(char *));
     print_prompt();
     while (fgets(buf, BUFFERSIZE, stdin))
     {
-        int len = strip(buf, BUFFERSIZE);
+        int len = strip_nl(buf, BUFFERSIZE);
         parse(buf, myargc, myargv);
-        exec_children(myargv, myargc);
+        if (*myargv != NULL && first_ws(*myargv) > 0) {
+            exec_children(myargv, myargc);
+        }
         memset(myargv, 0, ARGVMAX);
         memset(myargc, 0, ARGVMAX);
         print_prompt();
     }
     printf("\n");
-    free(myargc);
-    for(int i = 0; i < ARGVMAX; i++) {
-        free(myargv[i]);
-    }
-    free(myargv);
+    // free(myargc);
+    // for(int i = 0; i < ARGVMAX; i++) {
+    //     free(myargv[i]);
+    // }
+    // free(myargv);
 }
 
 int main(int argc, char **argv)
