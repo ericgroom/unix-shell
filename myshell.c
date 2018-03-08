@@ -7,7 +7,7 @@
  *                goal of the assignment is working with        *
  *                fork, pipes and exec system calls.            *
  ****************************************************************/
-
+// TODO fix tabs in header
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -58,10 +58,29 @@ void parse(char *raw, int *argc, char **argv)
     }
 }
 
-void exec_child(char **argv, int argc)
+void exec_children(char **argv, int *argc)
 {
+    // int no_commands = 0;
+    int pd[2];
+    pipe(pd);
+    // while(argc[no_commands] != NULL) no_commands++;
+    char** command1_argv = calloc(5, sizeof(char *));
+    char** command2_argv = calloc(5, sizeof(char *));
+    for (int i = 0; argv[i] != NULL; i++)
+    {
+        command1_argv[i] = malloc(strlen(argv[i]) + 1);
+        strcpy(command1_argv[i], argv[i]);
+    }
+    for (int i = 0; argv[i+4] != NULL; i++)
+    {
+        command2_argv[i] = malloc(strlen(argv[i+4]) + 1);
+        strcpy(command2_argv[i], argv[i+4]);
+    }
+    command1_argv[4] = NULL;
+    command2_argv[4] = NULL;
+
     pid_t child_pid = -1;
-    if (strncmp(argv[0], "exit", 4) == 0) {
+    if (strncmp(command1_argv[0], "exit", 4) == 0) {
         exit(0);
     }
     child_pid = fork();
@@ -69,31 +88,33 @@ void exec_child(char **argv, int argc)
     {
         perror("forking error");
     }
-    else if (child_pid == 0)
+    else if (child_pid == 0) // child one
     {
+        dup2(pd[1], STDOUT_FILENO);
+
+        close(pd[0]);
+        close(pd[1]);
         int exec_return = -1;
-        exec_return = execvp(argv[0], argv);
+        exec_return = execvp(command1_argv[0], command1_argv);
         if (exec_return < 0)
             perror("error executing");
     }
     else
     {
-        wait(NULL); // wait for child
+        if (fork() == 0) {
+            dup2(pd[0], STDIN_FILENO);
+            close(pd[0]);
+            close(pd[1]);
+            int exec_return = -1;
+            exec_return = execvp(command2_argv[0], command2_argv);
+            if (exec_return < 0)
+                perror("error executing");
+        } else {
+            close(pd[0]);
+            close(pd[1]);
+            wait(NULL); // wait for child
+        }
     }
-}
-
-void exec_children(char **argv, int *argc, char **argv_buf)
-{
-    // int no_commands = 0;
-    // int pd[2];
-    // while(argc[no_commands] != NULL) no_commands++;
-    for (int i = 0; argv[i] != NULL; i++)
-    {
-        argv_buf[i] = malloc(strlen(argv[i]) + 1);
-        strcpy(argv_buf[i], argv[i]);
-    }
-    argv_buf[4] = NULL;
-    exec_child(argv_buf, argc[0]);
 }
 
 void start_loop()
@@ -101,13 +122,12 @@ void start_loop()
     char buf[BUFFERSIZE];
     int *myargc = calloc(PIPECNTMAX, sizeof(int));
     char **myargv = calloc(PIPECNTMAX * MAX_ARGV_PER_COMMAND, sizeof(char *));
-    char **callingargv = calloc(5, sizeof(char *));
     print_prompt();
     while (fgets(buf, BUFFERSIZE, stdin))
     {
         int len = strip(buf, BUFFERSIZE);
         parse(buf, myargc, myargv);
-        exec_children(myargv, myargc, callingargv);
+        exec_children(myargv, myargc);
         memset(myargv, 0, ARGVMAX);
         memset(myargc, 0, ARGVMAX);
         print_prompt();
