@@ -80,6 +80,27 @@ void exec_children(char **argv, int *argc)
         {
             dup2(pd[1], STDOUT_FILENO);
         }
+        int filedes = -1;
+        for(int i = 1; i < argc[0]; i++) {
+            if (strncmp(argv[i], ">", 2) == 0) {
+                filedes = open(argv[i+1], O_WRONLY | O_CREAT, 0640);
+                argv[i] = NULL;
+                dup2(filedes, STDOUT_FILENO);
+                break;
+            } else if (strncmp(argv[i], ">>", 3) == 0) {
+                filedes = open(argv[i+1], O_WRONLY | O_CREAT | O_APPEND, 0640);
+                argv[i] = NULL;
+                dup2(filedes, STDOUT_FILENO);
+                break;
+            } else if (strncmp(argv[i], "<", 2) == 0) {
+                filedes = open(argv[i+1], O_RDONLY);
+                argv[i] = NULL;
+                dup2(filedes, STDIN_FILENO);
+                break;
+            }
+        }
+
+        close(filedes);
 
         close(pd[0]);
         close(pd[1]);
