@@ -69,6 +69,14 @@ void exec_children(char **argv, int *argc)
     {
         exit(0);
     }
+    int wait_index = -1;
+    for(int i = 0; i < ARGVMAX; i++) {
+    if (argv[i] != NULL && strncmp(argv[i], "&", 1) == 0) {
+            argv[i] = NULL;
+            wait_index = i;
+            break;
+        }
+    }
     child_pid = fork();
     if (child_pid < 0)
     {
@@ -82,17 +90,17 @@ void exec_children(char **argv, int *argc)
         }
         int filedes = -1;
         for(int i = 1; i < argc[0]; i++) {
-            if (strncmp(argv[i], ">", 2) == 0) {
+            if (strncmp(argv[i], ">", 1) == 0) {
                 filedes = open(argv[i+1], O_WRONLY | O_CREAT, 0640);
                 argv[i] = NULL;
                 dup2(filedes, STDOUT_FILENO);
                 break;
-            } else if (strncmp(argv[i], ">>", 3) == 0) {
+            } else if (strncmp(argv[i], ">>", 2) == 0) {
                 filedes = open(argv[i+1], O_WRONLY | O_CREAT | O_APPEND, 0640);
                 argv[i] = NULL;
                 dup2(filedes, STDOUT_FILENO);
                 break;
-            } else if (strncmp(argv[i], "<", 2) == 0) {
+            } else if (strncmp(argv[i], "<", 1) == 0) {
                 filedes = open(argv[i+1], O_RDONLY);
                 argv[i] = NULL;
                 dup2(filedes, STDIN_FILENO);
@@ -124,7 +132,8 @@ void exec_children(char **argv, int *argc)
         { // parent
             close(pd[0]);
             close(pd[1]);
-            wait(NULL); // wait for child
+            if (wait_index < 0)
+                wait(NULL); // wait for child
         }
     }
 }
