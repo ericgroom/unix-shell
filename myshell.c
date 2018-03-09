@@ -64,7 +64,6 @@ void exec_children(char **argv, int *argc)
 {
     int pd[2];
     pipe(pd);
-    int *hasPipe = argc[1] > 0;
     pid_t child_pid = -1;
     if (strncmp(argv[0], "exit", 4) == 0)
     {
@@ -77,8 +76,9 @@ void exec_children(char **argv, int *argc)
     }
     else if (child_pid == 0) // child one
     {
-        if (hasPipe) {
-        dup2(pd[1], STDOUT_FILENO);
+        if (argc[1] > 0)
+        {
+            dup2(pd[1], STDOUT_FILENO);
         }
 
         close(pd[0]);
@@ -89,13 +89,13 @@ void exec_children(char **argv, int *argc)
     }
     else
     {
-        if (hasPipe && fork() == 0)
+        if (argc[1] > 0 && fork() == 0)
         { // child 2
             dup2(pd[0], STDIN_FILENO);
             close(pd[0]);
             close(pd[1]);
-            
-            int index = argc[0]+1;
+
+            int index = argc[0] + 1;
             execvp(argv[index], &argv[index]);
             perror("error executing");
         }
@@ -108,10 +108,13 @@ void exec_children(char **argv, int *argc)
     }
 }
 
-int first_ws(char *str) {
+int first_ws(char *str)
+{
     int len = strlen(str);
-    for(int i = 0; i < len; i++) {
-        if (str[i] == '\n' || str[i] == '\t' || str[i] == ' ' ) {
+    for (int i = 0; i < len; i++)
+    {
+        if (str[i] == '\n' || str[i] == '\t' || str[i] == ' ')
+        {
             return i;
         }
     }
@@ -128,19 +131,20 @@ void start_loop()
     {
         int len = strip_nl(buf, BUFFERSIZE);
         parse(buf, myargc, myargv);
-        if (*myargv != NULL && first_ws(*myargv) > 0) {
+        if (*myargv != NULL && first_ws(*myargv) > 0)
+        {
             exec_children(myargv, myargc);
         }
         memset(myargv, 0, ARGVMAX);
-        memset(myargc, 0, ARGVMAX);
+        memset(myargc, 0, PIPECNTMAX);
         print_prompt();
     }
     printf("\n");
-    // free(myargc);
-    // for(int i = 0; i < ARGVMAX; i++) {
-    //     free(myargv[i]);
-    // }
-    // free(myargv);
+    free(myargc);
+    for(int i = 0; i < ARGVMAX; i++) {
+        free(myargv[i]);
+    }
+    free(myargv);
 }
 
 int main(int argc, char **argv)
