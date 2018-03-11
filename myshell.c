@@ -72,6 +72,16 @@ void exec_children(char **argv, int *argc)
     if (strncmp(argv[0], "exit", 4) == 0)
     {
         exit(0);
+    } else if (strncmp(argv[0], "cd", 2) == 0) {
+        int chdir_err = -1;
+        chdir_err = chdir(argv[1]);
+        if (chdir_err < 0) perror("error changing directories");
+        return;
+    } else if (strncmp(argv[0], "pwd", 3) == 0) {
+        char buf[256];
+        getcwd(buf, 256);
+        printf("%s\n", buf);
+        return;
     }
     int wait_index = -1;
     for(int i = 0; i < ARGVMAX; i++) {
