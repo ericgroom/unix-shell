@@ -60,6 +60,10 @@ void parse(char *raw, int *argc, char **argv)
     }
 }
 
+void exec_child(char **argv, int *argc) {
+
+}
+
 void exec_children(char **argv, int *argc)
 {
     int pd[2];
@@ -130,10 +134,10 @@ void exec_children(char **argv, int *argc)
         }
         else
         { // parent
-            close(pd[0]);
-            close(pd[1]);
             if (wait_index < 0)
                 wait(NULL); // wait for child
+            close(pd[0]);
+            close(pd[1]);
         }
     }
 }
@@ -154,7 +158,7 @@ int first_ws(char *str)
 void start_loop()
 {
     char buf[BUFFERSIZE];
-    int *myargc = calloc(PIPECNTMAX, sizeof(int));
+    int *myargc = calloc(PIPECNTMAX+1, sizeof(int));
     char **myargv = calloc(ARGVMAX, sizeof(char *));
     print_prompt();
     while (fgets(buf, BUFFERSIZE, stdin))
@@ -166,7 +170,7 @@ void start_loop()
             exec_children(myargv, myargc);
         }
         memset(myargv, 0, ARGVMAX);
-        memset(myargc, 0, PIPECNTMAX);
+        memset(myargc, 0, PIPECNTMAX+1);
         print_prompt();
     }
     printf("\n");
