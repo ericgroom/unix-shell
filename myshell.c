@@ -18,15 +18,17 @@
 #include <fcntl.h>
 
 #define BUFFERSIZE 256
-#define PROMPT "myShell >> "
-#define PROMPTSIZE sizeof(PROMPT)
+#define PROMPTNAME "myShell "
+#define PROMPTSEPARATOR " >> "
 #define ARGVMAX 64
 #define PIPECNTMAX 10
 #define MAX_ARGV_PER_COMMAND 4
 
 void print_prompt()
 {
-    printf("%s", PROMPT);
+    char dir[256];
+    getcwd(dir, 256);
+    printf("%s%s%s", PROMPTNAME, dir, PROMPTSEPARATOR);
 }
 
 int strip_nl(char *str, int size)
