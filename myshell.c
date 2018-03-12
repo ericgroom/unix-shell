@@ -88,6 +88,7 @@ void exec_children(char **argv, int *argc)
     if (argv[i] != NULL && strncmp(argv[i], "&", 1) == 0) {
             argv[i] = NULL;
             wait_index = i;
+            argc[0]--;
             break;
         }
     }
@@ -103,6 +104,7 @@ void exec_children(char **argv, int *argc)
             dup2(pd[1], STDOUT_FILENO);
         }
         int filedes = -1;
+        if (argv[1] != NULL) {
         for(int i = 1; i < argc[0]; i++) {
             if (strncmp(argv[i], ">", 1) == 0) {
                 filedes = open(argv[i+1], O_WRONLY | O_CREAT, 0640);
@@ -121,11 +123,8 @@ void exec_children(char **argv, int *argc)
                 break;
             }
         }
-
-        close(filedes);
-
+        }
         close(pd[0]);
-        close(pd[1]);
 
         execvp(*argv, argv);
         perror("error executing");
