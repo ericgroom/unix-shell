@@ -164,7 +164,7 @@ int first_ws(char *str)
     return len;
 }
 
-void start_loop()
+int main(int argc, char **argv)
 {
     char buf[BUFFERSIZE];
     int *myargc = calloc(PIPECNTMAX+1, sizeof(int));
@@ -188,10 +188,5 @@ void start_loop()
         free(myargv[i]);
     }
     free(myargv);
-}
-
-int main(int argc, char **argv)
-{
-    start_loop();
     return 0;
 }
