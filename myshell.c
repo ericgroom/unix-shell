@@ -60,8 +60,8 @@ void parse(char *raw, int *argc, char **argv)
     }
 }
 
-void exec_child(char **argv, int *argc) {
-
+void exec_child(char **argv, int *argc)
+{
 }
 
 void exec_children(char **argv, int *argc)
@@ -72,20 +72,27 @@ void exec_children(char **argv, int *argc)
     if (strncmp(argv[0], "exit", 4) == 0)
     {
         exit(0);
-    } else if (strncmp(argv[0], "cd", 2) == 0) {
+    }
+    else if (strncmp(argv[0], "cd", 2) == 0)
+    {
         int chdir_err = -1;
         chdir_err = chdir(argv[1]);
-        if (chdir_err < 0) perror("error changing directories");
+        if (chdir_err < 0)
+            perror("error changing directories");
         return;
-    } else if (strncmp(argv[0], "pwd", 3) == 0) {
+    }
+    else if (strncmp(argv[0], "pwd", 3) == 0)
+    {
         char buf[256];
         getcwd(buf, 256);
         printf("%s\n", buf);
         return;
     }
     int wait_index = -1;
-    for(int i = 0; i < ARGVMAX; i++) {
-    if (argv[i] != NULL && strncmp(argv[i], "&", 1) == 0) {
+    for (int i = 0; i < ARGVMAX; i++)
+    {
+        if (argv[i] != NULL && strncmp(argv[i], "&", 1) == 0)
+        {
             argv[i] = NULL;
             wait_index = i;
             argc[0]--;
@@ -104,25 +111,32 @@ void exec_children(char **argv, int *argc)
             dup2(pd[1], STDOUT_FILENO);
         }
         int filedes = -1;
-        if (argv[1] != NULL) {
-        for(int i = 1; i < argc[0]; i++) {
-            if (strncmp(argv[i], ">", 1) == 0) {
-                filedes = open(argv[i+1], O_WRONLY | O_CREAT, 0640);
-                argv[i] = NULL;
-                dup2(filedes, STDOUT_FILENO);
-                break;
-            } else if (strncmp(argv[i], ">>", 2) == 0) {
-                filedes = open(argv[i+1], O_WRONLY | O_CREAT | O_APPEND, 0640);
-                argv[i] = NULL;
-                dup2(filedes, STDOUT_FILENO);
-                break;
-            } else if (strncmp(argv[i], "<", 1) == 0) {
-                filedes = open(argv[i+1], O_RDONLY);
-                argv[i] = NULL;
-                dup2(filedes, STDIN_FILENO);
-                break;
+        if (argv[1] != NULL)
+        {
+            for (int i = 1; i < argc[0]; i++)
+            {
+                if (strncmp(argv[i], ">", 1) == 0)
+                {
+                    filedes = open(argv[i + 1], O_WRONLY | O_CREAT, 0640);
+                    argv[i] = NULL;
+                    dup2(filedes, STDOUT_FILENO);
+                    break;
+                }
+                else if (strncmp(argv[i], ">>", 2) == 0)
+                {
+                    filedes = open(argv[i + 1], O_WRONLY | O_CREAT | O_APPEND, 0640);
+                    argv[i] = NULL;
+                    dup2(filedes, STDOUT_FILENO);
+                    break;
+                }
+                else if (strncmp(argv[i], "<", 1) == 0)
+                {
+                    filedes = open(argv[i + 1], O_RDONLY);
+                    argv[i] = NULL;
+                    dup2(filedes, STDIN_FILENO);
+                    break;
+                }
             }
-        }
         }
         close(pd[0]);
 
@@ -167,7 +181,7 @@ int first_ws(char *str)
 int main(int argc, char **argv)
 {
     char buf[BUFFERSIZE];
-    int *myargc = calloc(PIPECNTMAX+1, sizeof(int));
+    int *myargc = calloc(PIPECNTMAX + 1, sizeof(int));
     char **myargv = calloc(ARGVMAX, sizeof(char *));
     print_prompt();
     while (fgets(buf, BUFFERSIZE, stdin))
@@ -179,12 +193,13 @@ int main(int argc, char **argv)
             exec_children(myargv, myargc);
         }
         memset(myargv, 0, ARGVMAX);
-        memset(myargc, 0, PIPECNTMAX+1);
+        memset(myargc, 0, PIPECNTMAX + 1);
         print_prompt();
     }
     printf("\n");
     free(myargc);
-    for(int i = 0; i < ARGVMAX; i++) {
+    for (int i = 0; i < ARGVMAX; i++)
+    {
         free(myargv[i]);
     }
     free(myargv);
