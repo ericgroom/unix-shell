@@ -24,6 +24,45 @@
 #define PIPECNTMAX 10
 #define MAX_ARGV_PER_COMMAND 4
 
+// SHELL METHODS
+void print_prompt();
+void parse(char *raw, int *argc, char **argv);
+void exec_children(char **argv, int *argc);
+int handle_builtins(char **argv);
+int redirect(char **argv, int* argc);
+
+// STR UTILS
+int first_ws(char *str);
+int strip_nl(char *str, int size);
+
+int main(int argc, char **argv)
+{
+    char buf[BUFFERSIZE];
+    int *myargc = calloc(PIPECNTMAX + 1, sizeof(int));
+    char **myargv = calloc(ARGVMAX, sizeof(char *));
+    print_prompt();
+    while (fgets(buf, BUFFERSIZE, stdin))
+    {
+        int len = strip_nl(buf, BUFFERSIZE);
+        parse(buf, myargc, myargv);
+        if (*myargv != NULL && first_ws(*myargv) > 0)
+        {
+            exec_children(myargv, myargc);
+        }
+        memset(myargv, 0, ARGVMAX);
+        memset(myargc, 0, PIPECNTMAX + 1);
+        print_prompt();
+    }
+    printf("\n");
+    free(myargc);
+    for (int i = 0; i < ARGVMAX; i++)
+    {
+        free(myargv[i]);
+    }
+    free(myargv);
+    return 0;
+}
+
 void print_prompt()
 {
     char *dir = malloc(256);
@@ -45,19 +84,6 @@ void print_prompt()
     free(dir);
 }
 
-int strip_nl(char *str, int size)
-{
-    for (int i = 0; i < size; i++)
-    {
-        if (str[i] == '\n')
-        {
-            str[i] = 0;
-            return i;
-        }
-    }
-    return size + 1;
-}
-
 void parse(char *raw, int *argc, char **argv)
 {
     int index = 0;
@@ -74,61 +100,6 @@ void parse(char *raw, int *argc, char **argv)
         command++;
         argv[++index] = NULL;
     }
-}
-
-int handle_builtins(char **argv) {
-    if (strncmp(argv[0], "exit", 4) == 0)
-    {
-        exit(0);
-    }
-    else if (strncmp(argv[0], "cd", 2) == 0)
-    {
-        int chdir_err = -1;
-        chdir_err = chdir(argv[1]);
-        if (chdir_err < 0)
-            perror("error changing directories");
-        return 1;
-    }
-    else if (strncmp(argv[0], "pwd", 3) == 0)
-    {
-        char buf[256];
-        getcwd(buf, 256);
-        printf("%s\n", buf);
-        return 1;
-    }
-    return 0;
-}
-
-int redirect(char **argv, int* argc) {
-    int i = 0;
-    while(i < *argc) {
-        if (strcmp(argv[i], ">") == 0)
-        {
-            int filedes = open(argv[i + 1], O_WRONLY | O_CREAT, 0640);
-            argv[i] = NULL;
-            dup2(filedes, STDOUT_FILENO);
-            *argc = i;
-            return 1;
-        }
-        else if (strcmp(argv[i], ">>") == 0)
-        {
-            int filedes = open(argv[i + 1], O_WRONLY | O_CREAT | O_APPEND, 0640);
-            argv[i] = NULL;
-            dup2(filedes, STDOUT_FILENO);
-            *argc = i;
-            return 1;
-        }
-        else if (strcmp(argv[i], "<") == 0)
-        {
-            int filedes = open(argv[i + 1], O_RDONLY);
-            argv[i] = NULL;
-            dup2(filedes, STDIN_FILENO);
-            *argc = i;
-            return 1;
-        }
-        i++;
-    }
-    return -1;
 }
 
 void exec_children(char **argv, int *argc)
@@ -216,6 +187,61 @@ void exec_children(char **argv, int *argc)
     }
 }
 
+int handle_builtins(char **argv) {
+    if (strncmp(argv[0], "exit", 4) == 0)
+    {
+        exit(0);
+    }
+    else if (strncmp(argv[0], "cd", 2) == 0)
+    {
+        int chdir_err = -1;
+        chdir_err = chdir(argv[1]);
+        if (chdir_err < 0)
+            perror("error changing directories");
+        return 1;
+    }
+    else if (strncmp(argv[0], "pwd", 3) == 0)
+    {
+        char buf[256];
+        getcwd(buf, 256);
+        printf("%s\n", buf);
+        return 1;
+    }
+    return 0;
+}
+
+int redirect(char **argv, int* argc) {
+    int i = 0;
+    while(i < *argc) {
+        if (strcmp(argv[i], ">") == 0)
+        {
+            int filedes = open(argv[i + 1], O_WRONLY | O_CREAT, 0640);
+            argv[i] = NULL;
+            dup2(filedes, STDOUT_FILENO);
+            *argc = i;
+            return 1;
+        }
+        else if (strcmp(argv[i], ">>") == 0)
+        {
+            int filedes = open(argv[i + 1], O_WRONLY | O_CREAT | O_APPEND, 0640);
+            argv[i] = NULL;
+            dup2(filedes, STDOUT_FILENO);
+            *argc = i;
+            return 1;
+        }
+        else if (strcmp(argv[i], "<") == 0)
+        {
+            int filedes = open(argv[i + 1], O_RDONLY);
+            argv[i] = NULL;
+            dup2(filedes, STDIN_FILENO);
+            *argc = i;
+            return 1;
+        }
+        i++;
+    }
+    return -1;
+}
+
 int first_ws(char *str)
 {
     int len = strlen(str);
@@ -229,30 +255,17 @@ int first_ws(char *str)
     return len;
 }
 
-int main(int argc, char **argv)
+int strip_nl(char *str, int size)
 {
-    char buf[BUFFERSIZE];
-    int *myargc = calloc(PIPECNTMAX + 1, sizeof(int));
-    char **myargv = calloc(ARGVMAX, sizeof(char *));
-    print_prompt();
-    while (fgets(buf, BUFFERSIZE, stdin))
+    for (int i = 0; i < size; i++)
     {
-        int len = strip_nl(buf, BUFFERSIZE);
-        parse(buf, myargc, myargv);
-        if (*myargv != NULL && first_ws(*myargv) > 0)
+        if (str[i] == '\n')
         {
-            exec_children(myargv, myargc);
+            str[i] = 0;
+            return i;
         }
-        memset(myargv, 0, ARGVMAX);
-        memset(myargc, 0, PIPECNTMAX + 1);
-        print_prompt();
     }
-    printf("\n");
-    free(myargc);
-    for (int i = 0; i < ARGVMAX; i++)
-    {
-        free(myargv[i]);
-    }
-    free(myargv);
-    return 0;
+    return size + 1;
 }
+
+
