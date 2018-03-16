@@ -62,6 +62,29 @@ void parse(char *raw, int *argc, char **argv)
     }
 }
 
+int handle_builtins(char **argv) {
+    if (strncmp(argv[0], "exit", 4) == 0)
+    {
+        exit(0);
+    }
+    else if (strncmp(argv[0], "cd", 2) == 0)
+    {
+        int chdir_err = -1;
+        chdir_err = chdir(argv[1]);
+        if (chdir_err < 0)
+            perror("error changing directories");
+        return 1;
+    }
+    else if (strncmp(argv[0], "pwd", 3) == 0)
+    {
+        char buf[256];
+        getcwd(buf, 256);
+        printf("%s\n", buf);
+        return 1;
+    }
+    return 0;
+}
+
 void exec_children(char **argv, int *argc)
 {
     // no of no_commands
@@ -83,6 +106,10 @@ void exec_children(char **argv, int *argc)
     // fork loop
     for(int i = 0; i < no_commands; i++) {
         pid_t child_pid = -1;
+        int argv_index = argv_i[i];
+        if (handle_builtins(&argv[argv_index])) {
+            continue;
+        }
         child_pid = fork();
         if (child_pid < 0) {
             perror("error forking");
@@ -112,7 +139,7 @@ void exec_children(char **argv, int *argc)
             for(int i = 0; i < PIPECNTMAX*2; i++) {
                 close(pd[i]);
             }
-            int argv_index = argv_i[i];
+            
             execvp(argv[argv_index], &argv[argv_index]);
         }
     }
