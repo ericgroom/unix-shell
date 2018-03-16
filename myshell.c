@@ -3,7 +3,7 @@
  * Class       : CSC 415                                        *
  * Date        : 3/12/2018                                      *
  * Description :  Writting a simple bash shell program          *
- *                that will execute simple commands. The main   *
+ *                that will execute simple no_commands. The main   *
  *                goal of the assignment is working with        *
  *                fork, pipes and exec system calls.            *
  ****************************************************************/
@@ -62,15 +62,7 @@ void parse(char *raw, int *argc, char **argv)
     }
 }
 
-void exec_child(char **argv, int *argc)
-{
-}
-
-void exec_children(char **argv, int *argc)
-{
-    int pd[2];
-    pipe(pd);
-    pid_t child_pid = -1;
+int handle_builtins(char **argv) {
     if (strncmp(argv[0], "exit", 4) == 0)
     {
         exit(0);
@@ -81,19 +73,66 @@ void exec_children(char **argv, int *argc)
         chdir_err = chdir(argv[1]);
         if (chdir_err < 0)
             perror("error changing directories");
-        return;
+        return 1;
     }
     else if (strncmp(argv[0], "pwd", 3) == 0)
     {
         char buf[256];
         getcwd(buf, 256);
         printf("%s\n", buf);
-        return;
+        return 1;
     }
+    return 0;
+}
+
+int redirect(char **argv, int* argc) {
+    int i = 0;
+    while(i < *argc) {
+        if (strcmp(argv[i], ">") == 0)
+        {
+            int filedes = open(argv[i + 1], O_WRONLY | O_CREAT, 0640);
+            argv[i] = NULL;
+            dup2(filedes, STDOUT_FILENO);
+            *argc = i;
+            return 1;
+        }
+        else if (strcmp(argv[i], ">>") == 0)
+        {
+            int filedes = open(argv[i + 1], O_WRONLY | O_CREAT | O_APPEND, 0640);
+            argv[i] = NULL;
+            dup2(filedes, STDOUT_FILENO);
+            *argc = i;
+            return 1;
+        }
+        else if (strcmp(argv[i], "<") == 0)
+        {
+            int filedes = open(argv[i + 1], O_RDONLY);
+            argv[i] = NULL;
+            dup2(filedes, STDIN_FILENO);
+            *argc = i;
+            return 1;
+        }
+        i++;
+    }
+    return -1;
+}
+
+void exec_children(char **argv, int *argc)
+{
+    // no of no_commands
+    int no_commands = 0;
+    while(no_commands < PIPECNTMAX+1 && argc[no_commands] > 0) no_commands++;
+
+    // create pipes
+    int pd[PIPECNTMAX*2];
+    for(int i = 0; i < PIPECNTMAX; i++) {
+        pipe(&pd[i*2]);
+    }
+
     int wait_index = -1;
     for (int i = 0; i < ARGVMAX; i++)
     {
-        if (argv[i] != NULL && strncmp(argv[i], "&", 1) == 0)
+        if (argv[i] != NULL && strcmp(argv[i], "&") == 0)
         {
             argv[i] = NULL;
             wait_index = i;
@@ -101,69 +140,65 @@ void exec_children(char **argv, int *argc)
             break;
         }
     }
-    child_pid = fork();
-    if (child_pid < 0)
-    {
-        perror("forking error");
+    
+    // determine start index for each command
+    int argv_i[PIPECNTMAX+1]; // used to determine the start index for each command
+    argv_i[0] = 0;
+    for(int i = 1; i < no_commands; i++) {
+        argv_i[i] = argv_i[i-1] + argc[i-1] + 1;
     }
-    else if (child_pid == 0) // child one
-    {
-        if (argc[1] > 0)
-        {
-            dup2(pd[1], STDOUT_FILENO);
+    // fork loop
+    for(int i = 0; i < no_commands; i++) {
+        pid_t child_pid = -1;
+        int argv_index = argv_i[i];
+        if (handle_builtins(&argv[argv_index])) {
+            continue;
         }
-        int filedes = -1;
-        if (argv[1] != NULL)
-        {
-            for (int i = 1; i < argc[0]; i++)
-            {
-                if (strncmp(argv[i], ">", 1) == 0)
-                {
-                    filedes = open(argv[i + 1], O_WRONLY | O_CREAT, 0640);
-                    argv[i] = NULL;
-                    dup2(filedes, STDOUT_FILENO);
-                    break;
-                }
-                else if (strncmp(argv[i], ">>", 2) == 0)
-                {
-                    filedes = open(argv[i + 1], O_WRONLY | O_CREAT | O_APPEND, 0640);
-                    argv[i] = NULL;
-                    dup2(filedes, STDOUT_FILENO);
-                    break;
-                }
-                else if (strncmp(argv[i], "<", 1) == 0)
-                {
-                    filedes = open(argv[i + 1], O_RDONLY);
-                    argv[i] = NULL;
-                    dup2(filedes, STDIN_FILENO);
-                    break;
-                }
+        child_pid = fork();
+        if (child_pid < 0) {
+            perror("error forking");
+        } else if (child_pid == 0) { // child
+            int has_redirect = redirect(&argv[argv_index], &argc[i]);
+            if (has_redirect <= 0) {
+                if (i+1 == no_commands) {
+                    // dont dup stdout
+                    int dup_err = -1;
+                    if (no_commands > 1) {
+                        int p_index = (i-1)*2;
+                        dup_err = dup2(pd[p_index], STDIN_FILENO);
+                        if(dup_err < 0)
+                            perror("dup err 1");
+                    }
+                } else if (i == 0) {
+                    // dont dup stdin
+                    int dup_err = -1;
+                    dup_err = dup2(pd[1], STDOUT_FILENO);
+                    if(dup_err < 0)
+                        perror("dup err 2");
+                } else {
+                    // dup both
+                    int dup_err = -1;
+                    dup_err = dup2(pd[(i-1)*2], STDIN_FILENO);
+                    if(dup_err < 0)
+                        perror("dup err 3");
+                    dup_err = dup2(pd[(i)*2+1], STDOUT_FILENO);
+                    if(dup_err < 0)
+                        perror("dup err 4");
+                }  
+            }          
+            for(int i = 0; i < PIPECNTMAX*2; i++) {
+                close(pd[i]);
             }
-        }
-        close(pd[0]);
 
-        execvp(*argv, argv);
-        perror("error executing");
+            execvp(argv[argv_index], &argv[argv_index]);
+        }
     }
-    else
-    {
-        if (argc[1] > 0 && fork() == 0)
-        { // child 2
-            dup2(pd[0], STDIN_FILENO);
-            close(pd[0]);
-            close(pd[1]);
-
-            int index = argc[0] + 1;
-            execvp(argv[index], &argv[index]);
-            perror("error executing");
-        }
-        else
-        { // parent
-            if (wait_index < 0)
-                wait(NULL); // wait for child
-            close(pd[0]);
-            close(pd[1]);
-        }
+    for(int i = 0; i < PIPECNTMAX*2; i++) {
+        close(pd[i]);
+    }
+    if (wait_index < 0) {
+        int wait_pid = -1;
+        while((wait_pid = wait(NULL)) > 0);
     }
 }
 
