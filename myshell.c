@@ -3,7 +3,7 @@
  * Class       : CSC 415                                        *
  * Date        : 3/12/2018                                      *
  * Description :  Writting a simple bash shell program          *
- *                that will execute simple commands. The main   *
+ *                that will execute simple no_commands. The main   *
  *                goal of the assignment is working with        *
  *                fork, pipes and exec system calls.            *
  ****************************************************************/
@@ -64,10 +64,9 @@ void parse(char *raw, int *argc, char **argv)
 
 void exec_children(char **argv, int *argc)
 {
-    // no of commands
-    int commands = 0;
-    while(commands < PIPECNTMAX+1 && argc[commands] > 0) commands++;
-    printf("no of commands: %d\n", commands);
+    // no of no_commands
+    int no_commands = 0;
+    while(no_commands < PIPECNTMAX+1 && argc[no_commands] > 0) no_commands++;
 
     // create pipes
     int pd[PIPECNTMAX*2];
@@ -76,56 +75,32 @@ void exec_children(char **argv, int *argc)
     }
     
     // determine start index for each command
-    int argv_i[PIPECNTMAX+1];
+    int argv_i[PIPECNTMAX+1]; // used to determine the start index for each command
     argv_i[0] = 0;
-    printf("argv_i -- ");
-    for(int i = 1; i < commands; i++) {
+    for(int i = 1; i < no_commands; i++) {
         argv_i[i] = argv_i[i-1] + argc[i-1] + 1;
-        printf("%d,", argv_i[i]);
-    }
-    printf("END\n");
-    for(int i = 0; i < commands; i++) {
-        printf("i: %d\n", i);
-        int w_index = (i)*2+1;
-        int r_index = (i-1)*2;
-        printf("w_index: %d\n", w_index);
-        printf("r_index: %d\n", r_index);
     }
     // fork loop
-    for(int i = 0; i < commands; i++) {
+    for(int i = 0; i < no_commands; i++) {
         pid_t child_pid = -1;
         child_pid = fork();
         if (child_pid < 0) {
             perror("error forking");
         } else if (child_pid == 0) { // child
-            printf("argc: %d\n", argc[i]);
-            printf("argv -- ");
-            for(int j = 0; j < argc[i]; j++) {
-                int index = j+argv_i[i];
-                printf("index: %d\n", index);
-                printf("%d: %s,", j, argv[index]);
-            }
-            printf("END\n");
             int dup_err = -1;
-            if (i+1 == commands) {
+            if (i+1 == no_commands) {
                 // dont dup stdout
-                printf("last process\n");
                 int p_index = (i-1)*2;
-                printf("p_index: %d\n", p_index);
                 dup_err = dup2(pd[p_index], STDIN_FILENO);
-                // close(pd[i*2+1]);
                 if(dup_err < 1)
                     perror("dup err 1");
             } else if (i == 0) {
                 // dont dup stdin
-                printf("first process\n");  
                 dup_err = dup2(pd[1], STDOUT_FILENO);
-                // close(pd[0]);
                 if(dup_err < 1)
                     perror("dup err 2");
             } else {
                 // dup both
-                printf("process #%d\n", i);
                 dup_err = dup2(pd[(i-1)*2], STDIN_FILENO);
                 if(dup_err < 1)
                     perror("dup err 3");
@@ -133,26 +108,19 @@ void exec_children(char **argv, int *argc)
                 if(dup_err < 1)
                     perror("dup err 4");
             }
-            int v_index = argv_i[i];
-            printf("v_index: %d\n", v_index);
-            int w_index = (i)*2+1;
-            int r_index = (i-1)*2;
-            printf("w_index: %d\n", w_index);
-            printf("r_index: %d\n", r_index);
+            
             for(int i = 0; i < PIPECNTMAX*2; i++) {
                 close(pd[i]);
             }
-            execvp(argv[v_index], &argv[v_index]);
-        } else {
-            // test command ls | grep shell | sort -dr
+            int argv_index = argv_i[i];
+            execvp(argv[argv_index], &argv[argv_index]);
         }
     }
     for(int i = 0; i < PIPECNTMAX*2; i++) {
         close(pd[i]);
     }
     int wait_pid = -1;
-    while((wait_pid = wait(NULL)) > 0) printf("waiting on: %d\n", wait_pid);
-    printf("after wait\n");
+    while((wait_pid = wait(NULL)) > 0);
 }
 
 int first_ws(char *str)
