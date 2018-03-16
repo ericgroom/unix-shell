@@ -165,25 +165,24 @@ void exec_children(char **argv, int *argc)
                     int dup_err = -1;
                     if (no_commands > 1) {
                         int p_index = (i-1)*2;
-                        printf("p_index: %d\n", p_index);
                         dup_err = dup2(pd[p_index], STDIN_FILENO);
-                        if(dup_err < 1)
+                        if(dup_err < 0)
                             perror("dup err 1");
                     }
                 } else if (i == 0) {
                     // dont dup stdin
                     int dup_err = -1;
                     dup_err = dup2(pd[1], STDOUT_FILENO);
-                    if(dup_err < 1)
+                    if(dup_err < 0)
                         perror("dup err 2");
                 } else {
                     // dup both
                     int dup_err = -1;
                     dup_err = dup2(pd[(i-1)*2], STDIN_FILENO);
-                    if(dup_err < 1)
+                    if(dup_err < 0)
                         perror("dup err 3");
                     dup_err = dup2(pd[(i)*2+1], STDOUT_FILENO);
-                    if(dup_err < 1)
+                    if(dup_err < 0)
                         perror("dup err 4");
                 }  
             }          
