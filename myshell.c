@@ -128,6 +128,18 @@ void exec_children(char **argv, int *argc)
     for(int i = 0; i < PIPECNTMAX; i++) {
         pipe(&pd[i*2]);
     }
+
+    int wait_index = -1;
+    for (int i = 0; i < ARGVMAX; i++)
+    {
+        if (argv[i] != NULL && strcmp(argv[i], "&") == 0)
+        {
+            argv[i] = NULL;
+            wait_index = i;
+            argc[0]--;
+            break;
+        }
+    }
     
     // determine start index for each command
     int argv_i[PIPECNTMAX+1]; // used to determine the start index for each command
@@ -185,8 +197,10 @@ void exec_children(char **argv, int *argc)
     for(int i = 0; i < PIPECNTMAX*2; i++) {
         close(pd[i]);
     }
-    int wait_pid = -1;
-    while((wait_pid = wait(NULL)) > 0);
+    if (wait_index < 0) {
+        int wait_pid = -1;
+        while((wait_pid = wait(NULL)) > 0);
+    }
 }
 
 int first_ws(char *str)
