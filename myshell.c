@@ -85,6 +85,38 @@ int handle_builtins(char **argv) {
     return 0;
 }
 
+int redirect(char **argv, int* argc) {
+    int i = 0;
+    while(i < *argc) {
+        if (strcmp(argv[i], ">") == 0)
+        {
+            int filedes = open(argv[i + 1], O_WRONLY | O_CREAT, 0640);
+            argv[i] = NULL;
+            dup2(filedes, STDOUT_FILENO);
+            *argc = i;
+            return 1;
+        }
+        else if (strcmp(argv[i], ">>") == 0)
+        {
+            int filedes = open(argv[i + 1], O_WRONLY | O_CREAT | O_APPEND, 0640);
+            argv[i] = NULL;
+            dup2(filedes, STDOUT_FILENO);
+            *argc = i;
+            return 1;
+        }
+        else if (strcmp(argv[i], "<") == 0)
+        {
+            int filedes = open(argv[i + 1], O_RDONLY);
+            argv[i] = NULL;
+            dup2(filedes, STDIN_FILENO);
+            *argc = i;
+            return 1;
+        }
+        i++;
+    }
+    return -1;
+}
+
 void exec_children(char **argv, int *argc)
 {
     // no of no_commands
@@ -114,32 +146,39 @@ void exec_children(char **argv, int *argc)
         if (child_pid < 0) {
             perror("error forking");
         } else if (child_pid == 0) { // child
-            int dup_err = -1;
-            if (i+1 == no_commands) {
-                // dont dup stdout
-                int p_index = (i-1)*2;
-                dup_err = dup2(pd[p_index], STDIN_FILENO);
-                if(dup_err < 1)
-                    perror("dup err 1");
-            } else if (i == 0) {
-                // dont dup stdin
-                dup_err = dup2(pd[1], STDOUT_FILENO);
-                if(dup_err < 1)
-                    perror("dup err 2");
-            } else {
-                // dup both
-                dup_err = dup2(pd[(i-1)*2], STDIN_FILENO);
-                if(dup_err < 1)
-                    perror("dup err 3");
-                dup_err = dup2(pd[(i)*2+1], STDOUT_FILENO);
-                if(dup_err < 1)
-                    perror("dup err 4");
-            }
-            
+            int has_redirect = redirect(&argv[argv_index], &argc[i]);
+            if (has_redirect <= 0) {
+                if (i+1 == no_commands) {
+                    // dont dup stdout
+                    int dup_err = -1;
+                    if (no_commands > 1) {
+                        int p_index = (i-1)*2;
+                        printf("p_index: %d\n", p_index);
+                        dup_err = dup2(pd[p_index], STDIN_FILENO);
+                        if(dup_err < 1)
+                            perror("dup err 1");
+                    }
+                } else if (i == 0) {
+                    // dont dup stdin
+                    int dup_err = -1;
+                    dup_err = dup2(pd[1], STDOUT_FILENO);
+                    if(dup_err < 1)
+                        perror("dup err 2");
+                } else {
+                    // dup both
+                    int dup_err = -1;
+                    dup_err = dup2(pd[(i-1)*2], STDIN_FILENO);
+                    if(dup_err < 1)
+                        perror("dup err 3");
+                    dup_err = dup2(pd[(i)*2+1], STDOUT_FILENO);
+                    if(dup_err < 1)
+                        perror("dup err 4");
+                }  
+            }          
             for(int i = 0; i < PIPECNTMAX*2; i++) {
                 close(pd[i]);
             }
-            
+
             execvp(argv[argv_index], &argv[argv_index]);
         }
     }
