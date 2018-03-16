@@ -3,7 +3,7 @@
  * Class       : CSC 415                                        *
  * Date        : 3/12/2018                                      *
  * Description :  Writting a simple bash shell program          *
- *                that will execute simple no_commands. The main   *
+ *                that will execute simple no_commands. The main*
  *                goal of the assignment is working with        *
  *                fork, pipes and exec system calls.            *
  ****************************************************************/
@@ -26,9 +26,23 @@
 
 void print_prompt()
 {
-    char dir[256];
+    char *dir = malloc(256);
+    memset(dir, 0, 256);
     getcwd(dir, 256);
+    char *home = getenv("HOME");
+    char *ret = strstr(dir, home);
+    if(ret) {
+        int index = 0;
+        while(index < strlen(home)) {
+            if (dir[index] != home[index]) {
+                break;
+            }
+            index++;
+        }
+        snprintf(dir, 256, "%s%s", "~/", &dir[index+1]);
+    }
     printf("%s%s%s", PROMPTNAME, dir, PROMPTSEPARATOR);
+    free(dir);
 }
 
 int strip_nl(char *str, int size)
