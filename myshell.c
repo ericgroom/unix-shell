@@ -1,7 +1,7 @@
 /****************************************************************
  * Name        : Eric Groom                                     *
  * Class       : CSC 415                                        *
- * Date        : 3/12/2018                                      *
+ * Date        : 3/16/2018                                      *
  * Description :  Writting a simple bash shell program          *
  *                that will execute simple no_commands. The main*
  *                goal of the assignment is working with        *
@@ -29,7 +29,7 @@ void print_prompt();
 void parse(char *raw, int *argc, char **argv);
 void exec_children(char **argv, int *argc);
 int handle_builtins(char **argv);
-int redirect(char **argv, int* argc);
+int redirect(char **argv, int *argc);
 
 // STR UTILS
 int first_ws(char *str);
@@ -70,15 +70,18 @@ void print_prompt()
     getcwd(dir, 256);
     char *home = getenv("HOME");
     char *ret = strstr(dir, home);
-    if(ret) {
+    if (ret)
+    {
         int index = 0;
-        while(index < strlen(home)) {
-            if (dir[index] != home[index]) {
+        while (index < strlen(home))
+        {
+            if (dir[index] != home[index])
+            {
                 break;
             }
             index++;
         }
-        snprintf(dir, 256, "%s%s", "~/", &dir[index+1]);
+        snprintf(dir, 256, "%s%s", "~/", &dir[index + 1]);
     }
     printf("%s%s%s", PROMPTNAME, dir, PROMPTSEPARATOR);
     free(dir);
@@ -106,14 +109,17 @@ void exec_children(char **argv, int *argc)
 {
     // no of no_commands
     int no_commands = 0;
-    while(no_commands < PIPECNTMAX+1 && argc[no_commands] > 0) no_commands++;
+    while (no_commands < PIPECNTMAX + 1 && argc[no_commands] > 0)
+        no_commands++;
 
     // create pipes
-    int pd[PIPECNTMAX*2];
-    for(int i = 0; i < PIPECNTMAX; i++) {
-        pipe(&pd[i*2]);
+    int pd[PIPECNTMAX * 2];
+    for (int i = 0; i < PIPECNTMAX; i++)
+    {
+        pipe(&pd[i * 2]);
     }
 
+    // determine if parent should wait for children
     int wait_index = -1;
     for (int i = 0; i < ARGVMAX; i++)
     {
@@ -125,69 +131,88 @@ void exec_children(char **argv, int *argc)
             break;
         }
     }
-    
+
     // determine start index for each command
-    int argv_i[PIPECNTMAX+1]; // used to determine the start index for each command
+    int argv_i[PIPECNTMAX + 1];
     argv_i[0] = 0;
-    for(int i = 1; i < no_commands; i++) {
-        argv_i[i] = argv_i[i-1] + argc[i-1] + 1;
+    for (int i = 1; i < no_commands; i++)
+    {
+        argv_i[i] = argv_i[i - 1] + argc[i - 1] + 1;
     }
     // fork loop
-    for(int i = 0; i < no_commands; i++) {
+    for (int i = 0; i < no_commands; i++)
+    {
         pid_t child_pid = -1;
         int argv_index = argv_i[i];
-        if (handle_builtins(&argv[argv_index])) {
+        if (handle_builtins(&argv[argv_index]))
+        { // skip iteration if cd, pwd or exit
             continue;
         }
         child_pid = fork();
-        if (child_pid < 0) {
+        if (child_pid < 0)
+        {
             perror("error forking");
-        } else if (child_pid == 0) { // child
+        }
+        else if (child_pid == 0)
+        { // child
             int has_redirect = redirect(&argv[argv_index], &argc[i]);
-            if (has_redirect <= 0) {
-                if (i+1 == no_commands) {
+            // direct input/output of children
+            if (has_redirect <= 0)
+            {
+                if (i + 1 == no_commands)
+                { // last command
                     // dont dup stdout
                     int dup_err = -1;
-                    if (no_commands > 1) {
-                        int p_index = (i-1)*2;
+                    if (no_commands > 1)
+                    {
+                        int p_index = (i - 1) * 2;
                         dup_err = dup2(pd[p_index], STDIN_FILENO);
-                        if(dup_err < 0)
+                        if (dup_err < 0)
                             perror("dup err 1");
                     }
-                } else if (i == 0) {
+                }
+                else if (i == 0)
+                { // first command
                     // dont dup stdin
                     int dup_err = -1;
                     dup_err = dup2(pd[1], STDOUT_FILENO);
-                    if(dup_err < 0)
+                    if (dup_err < 0)
                         perror("dup err 2");
-                } else {
+                }
+                else
+                {
                     // dup both
                     int dup_err = -1;
-                    dup_err = dup2(pd[(i-1)*2], STDIN_FILENO);
-                    if(dup_err < 0)
+                    dup_err = dup2(pd[(i - 1) * 2], STDIN_FILENO);
+                    if (dup_err < 0)
                         perror("dup err 3");
-                    dup_err = dup2(pd[(i)*2+1], STDOUT_FILENO);
-                    if(dup_err < 0)
+                    dup_err = dup2(pd[(i)*2 + 1], STDOUT_FILENO);
+                    if (dup_err < 0)
                         perror("dup err 4");
-                }  
-            }          
-            for(int i = 0; i < PIPECNTMAX*2; i++) {
+                }
+            }
+            for (int i = 0; i < PIPECNTMAX * 2; i++)
+            {
                 close(pd[i]);
             }
 
             execvp(argv[argv_index], &argv[argv_index]);
         }
     }
-    for(int i = 0; i < PIPECNTMAX*2; i++) {
+    for (int i = 0; i < PIPECNTMAX * 2; i++)
+    {
         close(pd[i]);
     }
-    if (wait_index < 0) {
+    if (wait_index < 0)
+    {
         int wait_pid = -1;
-        while((wait_pid = wait(NULL)) > 0);
+        while ((wait_pid = wait(NULL)) > 0)
+            ;
     }
 }
 
-int handle_builtins(char **argv) {
+int handle_builtins(char **argv)
+{
     if (strncmp(argv[0], "exit", 4) == 0)
     {
         exit(0);
@@ -210,9 +235,11 @@ int handle_builtins(char **argv) {
     return 0;
 }
 
-int redirect(char **argv, int* argc) {
+int redirect(char **argv, int *argc)
+{
     int i = 0;
-    while(i < *argc) {
+    while (i < *argc)
+    {
         if (strcmp(argv[i], ">") == 0)
         {
             int filedes = open(argv[i + 1], O_WRONLY | O_CREAT, 0640);
@@ -267,5 +294,3 @@ int strip_nl(char *str, int size)
     }
     return size + 1;
 }
-
-
